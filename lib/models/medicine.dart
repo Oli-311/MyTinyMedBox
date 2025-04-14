@@ -7,30 +7,56 @@ enum MedicineUnit {
 enum MedicineStatus {
   normal,
   empty,
+  almostEmpty,
+  aboutToExpire,
+}
+
+enum MedicineSortMethod {
+  alphabetical,
+  additionOrder,
+  expirationTime,
+  remainingQuantity,
 }
 
 class Medicine {
   final String name;
   double quantity;
+  final double initialQuantity; // Store initial quantity for comparison
   final MedicineUnit unit;
   final double dosage;
   final String effects;
   final DateTime expirationDate;
+  final DateTime addedDate; // Store when the medicine was added
 
   Medicine({
     required this.name,
     required this.quantity,
+    double? initialQuantity,
     this.unit = MedicineUnit.tablet,
     this.dosage = 1.0,
     this.effects = '',
     required this.expirationDate,
-  });
+    DateTime? addedDate,
+  }) : 
+    this.initialQuantity = initialQuantity ?? quantity,
+    this.addedDate = addedDate ?? DateTime.now();
 
   // Check if medicine is empty
   bool get isEmpty => quantity <= 0;
 
+  // Check if medicine is almost empty (less than 10% of initial quantity)
+  bool get isAlmostEmpty => quantity > 0 && quantity < (initialQuantity / 10);
+
+  // Check if medicine is about to expire (less than 10 days)
+  bool get isAboutToExpire => daysUntilExpiration >= 0 && daysUntilExpiration < 10;
+
   // Get medicine status
-  MedicineStatus get status => isEmpty ? MedicineStatus.empty : MedicineStatus.normal;
+  MedicineStatus get status {
+    if (isEmpty) return MedicineStatus.empty;
+    if (isAlmostEmpty) return MedicineStatus.almostEmpty;
+    if (isAboutToExpire) return MedicineStatus.aboutToExpire;
+    return MedicineStatus.normal;
+  }
 
   // Use medicine (reduce quantity by dosage)
   void use() {
@@ -115,22 +141,32 @@ class Medicine {
     return {
       'name': name,
       'quantity': quantity,
+      'initialQuantity': initialQuantity,
       'unit': unit.index,
       'dosage': dosage,
       'effects': effects,
       'expirationDate': expirationDate.millisecondsSinceEpoch,
+      'addedDate': addedDate.millisecondsSinceEpoch,
     };
   }
 
   // Create Medicine object from JSON
   factory Medicine.fromJson(Map<String, dynamic> json) {
+    final quantity = json['quantity'] is int 
+        ? (json['quantity'] as int).toDouble() 
+        : json['quantity'] as double;
+    
     return Medicine(
       name: json['name'],
-      quantity: json['quantity'] is int ? (json['quantity'] as int).toDouble() : json['quantity'],
+      quantity: quantity,
+      initialQuantity: json['initialQuantity'] ?? quantity,
       unit: MedicineUnit.values[json['unit'] ?? 0],
       dosage: json['dosage'] ?? 1.0,
       effects: json['effects'] ?? '',
       expirationDate: DateTime.fromMillisecondsSinceEpoch(json['expirationDate']),
+      addedDate: json['addedDate'] != null 
+          ? DateTime.fromMillisecondsSinceEpoch(json['addedDate']) 
+          : DateTime.now(),
     );
   }
 }

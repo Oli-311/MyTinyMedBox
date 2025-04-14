@@ -5,6 +5,7 @@ import '../providers/medicine_provider.dart';
 import '../widgets/medicine_card.dart';
 import '../widgets/add_medicine_card.dart';
 import '../widgets/add_medicine_form.dart';
+import 'medicine_detail_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -17,11 +18,15 @@ class HomeScreen extends StatelessWidget {
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
         actions: [
+          _buildDisplayModeButton(context),
+          _buildSortButton(context),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: '刷新',
             onPressed: () {
-              Provider.of<MedicineProvider>(context, listen: false).reloadMedicines();
+              final provider = Provider.of<MedicineProvider>(context, listen: false);
+              provider.recordInteraction();
+              provider.reloadMedicines();
             },
           ),
         ],
@@ -124,12 +129,16 @@ class HomeScreen extends StatelessWidget {
   }
 
   void _showMedicineDetails(BuildContext context, Medicine medicine, int index) {
-    // For now, just show a snackbar with the medicine name
-    // In a real app, you might want to navigate to a detail screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('查看 ${medicine.name} 详情'),
-        duration: const Duration(seconds: 1),
+    // Record interaction to reset idle timer
+    Provider.of<MedicineProvider>(context, listen: false).recordInteraction();
+    
+    // Navigate to detail screen
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => MedicineDetailScreen(
+          medicine: medicine,
+          index: index,
+        ),
       ),
     );
   }
@@ -165,6 +174,77 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDisplayModeButton(BuildContext context) {
+    return Consumer<MedicineProvider>(
+      builder: (context, provider, child) {
+        final isCollapsed = provider.isCollapsed;
+        return IconButton(
+          icon: Icon(isCollapsed ? Icons.unfold_more : Icons.unfold_less),
+          tooltip: isCollapsed ? '展开显示' : '折叠显示',
+          onPressed: () {
+            provider.toggleDisplayMode();
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSortButton(BuildContext context) {
+    return Consumer<MedicineProvider>(
+      builder: (context, provider, child) {
+        return PopupMenuButton<MedicineSortMethod>(
+          icon: const Icon(Icons.sort),
+          tooltip: '排序方式',
+          onSelected: (MedicineSortMethod method) {
+            provider.setSortMethod(method);
+          },
+          itemBuilder: (BuildContext context) => [
+            const PopupMenuItem<MedicineSortMethod>(
+              value: MedicineSortMethod.alphabetical,
+              child: Row(
+                children: [
+                  Icon(Icons.sort_by_alpha),
+                  SizedBox(width: 8),
+                  Text('按名称排序'),
+                ],
+              ),
+            ),
+            const PopupMenuItem<MedicineSortMethod>(
+              value: MedicineSortMethod.additionOrder,
+              child: Row(
+                children: [
+                  Icon(Icons.access_time),
+                  SizedBox(width: 8),
+                  Text('按添加顺序排序'),
+                ],
+              ),
+            ),
+            const PopupMenuItem<MedicineSortMethod>(
+              value: MedicineSortMethod.expirationTime,
+              child: Row(
+                children: [
+                  Icon(Icons.event),
+                  SizedBox(width: 8),
+                  Text('按过期时间排序'),
+                ],
+              ),
+            ),
+            const PopupMenuItem<MedicineSortMethod>(
+              value: MedicineSortMethod.remainingQuantity,
+              child: Row(
+                children: [
+                  Icon(Icons.inventory_2),
+                  SizedBox(width: 8),
+                  Text('按剩余数量排序'),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

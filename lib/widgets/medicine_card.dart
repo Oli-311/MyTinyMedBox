@@ -19,21 +19,51 @@ class MedicineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isEmpty = medicine.isEmpty;
+    final medicineProvider = Provider.of<MedicineProvider>(context);
+    final bool isCollapsed = medicineProvider.isCollapsed;
+    
+    // Determine card color based on medicine status
+    Color? cardColor;
+    Color nameColor = Colors.black;
+    BorderSide cardBorder = BorderSide.none;
+    
+    switch (medicine.status) {
+      case MedicineStatus.empty:
+        cardColor = Colors.red.shade50;
+        nameColor = Colors.red;
+        cardBorder = BorderSide(color: Colors.red.shade200, width: 1.0);
+        break;
+      case MedicineStatus.almostEmpty:
+        cardColor = Colors.red.shade50;
+        nameColor = Colors.red;
+        break;
+      case MedicineStatus.aboutToExpire:
+        cardColor = Colors.orange.shade50;
+        nameColor = Colors.orange.shade800;
+        break;
+      case MedicineStatus.normal:
+        cardColor = null;
+        nameColor = Colors.black;
+        break;
+    }
     
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       elevation: 4.0,
-      color: isEmpty ? Colors.red.shade50 : null,
+      color: cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12.0),
-        side: isEmpty 
-            ? BorderSide(color: Colors.red.shade200, width: 1.0)
-            : BorderSide.none,
+        side: cardBorder,
       ),
       child: InkWell(
-        onTap: onTap,
-        onDoubleTap: () => _useMedicine(context),
+        onTap: () {
+          medicineProvider.recordInteraction();
+          if (onTap != null) onTap!();
+        },
+        onDoubleTap: () {
+          medicineProvider.recordInteraction();
+          _useMedicine(context);
+        },
         borderRadius: BorderRadius.circular(12.0),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -49,64 +79,121 @@ class MedicineCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 20.0,
                         fontWeight: FontWeight.bold,
-                        color: isEmpty ? Colors.red : null,
+                        color: nameColor,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  Row(
-                    children: [
-                      if (!isEmpty)
-                        Tooltip(
-                          message: '双击使用药品',
-                          child: IconButton(
-                            icon: const Icon(Icons.medication, color: Colors.blue),
-                            onPressed: () => _useMedicine(context),
-                            tooltip: '使用药品',
+                  if (!isCollapsed)
+                    Row(
+                      children: [
+                        if (!medicine.isEmpty)
+                          Tooltip(
+                            message: '双击使用药品',
+                            child: IconButton(
+                              icon: const Icon(Icons.medication, color: Colors.blue),
+                              onPressed: () {
+                                medicineProvider.recordInteraction();
+                                _useMedicine(context);
+                              },
+                              tooltip: '使用药品',
+                            ),
                           ),
-                        ),
-                      if (onDelete != null)
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: onDelete,
-                          tooltip: '删除',
-                        ),
-                    ],
-                  ),
+                        if (onDelete != null)
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () {
+                              medicineProvider.recordInteraction();
+                              onDelete!();
+                            },
+                            tooltip: '删除',
+                          ),
+                      ],
+                    ),
                 ],
               ),
-              const SizedBox(height: 8.0),
-              _buildInfoRow('数量:', medicine.quantityString, isEmpty),
-              _buildInfoRow('用量:', medicine.dosageString, isEmpty),
-              if (medicine.effects.isNotEmpty)
-                _buildInfoRow('功效:', medicine.effects, isEmpty),
-              _buildInfoRow('有效期:', medicine.formattedExpirationDate, isEmpty),
-              if (isEmpty)
-                Container(
-                  margin: const EdgeInsets.only(top: 8.0),
-                  padding: const EdgeInsets.all(8.0),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade100,
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.warning, color: Colors.red, size: 16),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          '药品已用完，请及时购买',
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
+              if (!isCollapsed) ...[
+                const SizedBox(height: 8.0),
+                _buildInfoRow('数量:', medicine.quantityString, medicine.isEmpty),
+                _buildInfoRow('用量:', medicine.dosageString, medicine.isEmpty),
+                if (medicine.effects.isNotEmpty)
+                  _buildInfoRow('功效:', medicine.effects, medicine.isEmpty),
+                _buildInfoRow('有效期:', medicine.formattedExpirationDate, medicine.isEmpty),
+                if (medicine.isEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8.0),
+                    padding: const EdgeInsets.all(8.0),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade100,
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.warning, color: Colors.red, size: 16),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '药品已用完，请及时购买',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                _buildExpirationStatus(),
+                      ],
+                    ),
+                  )
+                else if (medicine.isAlmostEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8.0),
+                    padding: const EdgeInsets.all(8.0),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade100,
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.warning, color: Colors.red, size: 16),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '药品即将用完，请及时购买',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (medicine.isAboutToExpire)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8.0),
+                    padding: const EdgeInsets.all(8.0),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade100,
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning, color: Colors.orange, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '药品即将过期，请注意使用',
+                            style: TextStyle(
+                              color: Colors.orange.shade800,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  _buildExpirationStatus(),
+              ],
             ],
           ),
         ),

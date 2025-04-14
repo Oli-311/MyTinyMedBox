@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/medicine.dart';
+import '../providers/medicine_provider.dart';
 
 class AddMedicineForm extends StatefulWidget {
   final Function(Medicine) onSave;
@@ -98,6 +100,9 @@ class _AddMedicineFormState extends State<AddMedicineForm> {
         effects: _effectsController.text,
         expirationDate: _selectedDate!,
       );
+      
+      // Record interaction before saving
+      Provider.of<MedicineProvider>(context, listen: false).recordInteraction();
       
       widget.onSave(medicine);
       Navigator.of(context).pop();

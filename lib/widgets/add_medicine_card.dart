@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/medicine_provider.dart';
 
 class AddMedicineCard extends StatelessWidget {
   final VoidCallback onTap;
@@ -10,6 +12,13 @@ class AddMedicineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final medicineProvider = Provider.of<MedicineProvider>(context, listen: false);
+    final bool isCollapsed = medicineProvider.isCollapsed;
+    
+    if (isCollapsed) {
+      return const SizedBox.shrink(); // Don't show add card when collapsed
+    }
+    
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       elevation: 2.0,
@@ -21,7 +30,10 @@ class AddMedicineCard extends StatelessWidget {
         ),
       ),
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          medicineProvider.recordInteraction();
+          onTap();
+        },
         borderRadius: BorderRadius.circular(12.0),
         child: Container(
           padding: const EdgeInsets.all(16.0),
